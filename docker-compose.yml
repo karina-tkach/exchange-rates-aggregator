@@ -1,0 +1,76 @@
+services:
+  collector:
+    build:
+      context: ./market-data-collector
+      dockerfile: Dockerfile
+    container_name: market_collector
+    ports:
+      - "8082:8080"
+    depends_on:
+      - postgres
+      - redis
+
+  api:
+    build:
+      context: ./analytics-api
+      dockerfile: Dockerfile
+    container_name: analytics_api
+    ports:
+      - "8000:8000"
+      - "5173:5173"
+    volumes:
+      - ./analytics-api:/var/www/html
+    depends_on:
+      - collector
+      - postgres
+      - redis
+    environment:
+      DB_HOST: postgres
+      DB_DATABASE: analytics_db
+      DB_USERNAME: userEx
+      DB_PASSWORD: passwordEx
+      REDIS_HOST: redis
+    working_dir: /var/www/html
+    command: >
+      bash -c "
+        npm install &&
+        npm run dev -- --host 0.0.0.0 --port 5173 &
+        php artisan serve --host=0.0.0.0 --port=8000
+      "
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: php_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: analytics_db
+      POSTGRES_USER: userEx
+      POSTGRES_PASSWORD: passwordEx
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    command: postgres -c shared_preload_libraries=timescaledb
+
+  redis:
+    image: redis:7-alpine
+    container_name: php_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  adminer:
+    image: adminer
+    container_name: php_adminer
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "8081:8080"
+volumes:
+  db_data:
+  redis-data:
