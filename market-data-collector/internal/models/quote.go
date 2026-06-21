@@ -1,12 +1,16 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 type Quote struct {
-	PairID    int
-	Price     float64
-	Bid       float64
-	Ask       float64
+	PairID    uint32
+	Price     decimal.Decimal
+	Bid       decimal.Decimal
+	Ask       decimal.Decimal
 	Source    string
 	Timestamp time.Time
 }

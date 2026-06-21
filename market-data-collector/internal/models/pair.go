@@ -1,7 +1,7 @@
 package models
 
 type Pair struct {
-	ID    int
+	ID    uint32
 	Base  string
 	Quote string
 }

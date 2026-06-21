@@ -64,6 +64,10 @@ class AddCorrelationId
 
         $parts = explode('/', $trimmed);
 
+        if (empty($parts)) {
+            return 'unknown';
+        }
+
         return $parts[0];
     }
 }

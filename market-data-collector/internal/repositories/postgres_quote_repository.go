@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"market-data-collector/internal/models"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,7 +18,7 @@ func NewPostgresQuoteRepository(db *pgxpool.Pool) *PostgresQuoteRepository {
 	}
 }
 
-func (r *PostgresQuoteRepository) SaveBatch(quotes []models.Quote) error {
+func (r *PostgresQuoteRepository) SaveBatch(ctx context.Context, quotes []models.Quote) error {
 	if len(quotes) == 0 {
 		return nil
 	}
@@ -46,9 +45,6 @@ func (r *PostgresQuoteRepository) SaveBatch(quotes []models.Quote) error {
 			q.Timestamp,
 		)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	br := r.db.SendBatch(ctx, batch)
 	defer br.Close()

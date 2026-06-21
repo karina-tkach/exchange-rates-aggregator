@@ -17,9 +17,9 @@ func NewPostgresPairRepository(db *pgxpool.Pool) *PostgresPairRepository {
 	}
 }
 
-func (r *PostgresPairRepository) GetAll() ([]models.Pair, error) {
+func (r *PostgresPairRepository) GetAll(ctx context.Context) ([]models.Pair, error) {
 	rows, err := r.db.Query(
-		context.Background(),
+		ctx,
 		`
 		SELECT id, base, quote
 		FROM pairs

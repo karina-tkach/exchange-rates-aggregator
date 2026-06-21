@@ -1,15 +1,18 @@
 package repositories
 
-import "market-data-collector/internal/models"
+import (
+	"context"
+	"market-data-collector/internal/models"
+)
 
 type PairRepository interface {
-	GetAll() ([]models.Pair, error)
+	GetAll(ctx context.Context) ([]models.Pair, error)
 }
 
 type ExchangeRepository interface {
-	GetEnabled() ([]string, error)
+	GetEnabled(ctx context.Context) ([]string, error)
 }
 
 type QuoteRepository interface {
-	SaveBatch([]models.Quote) error
+	SaveBatch(ctx context.Context, quotes []models.Quote) error
 }

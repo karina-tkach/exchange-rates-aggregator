@@ -1,12 +1,14 @@
 package collector
 
 import (
+	"context"
 	"log"
 	"market-data-collector/internal/exchanges"
 	"market-data-collector/internal/factory"
 	"market-data-collector/internal/models"
 	"market-data-collector/internal/repositories"
 	"sync"
+	"time"
 )
 
 type Collector struct {
@@ -26,14 +28,14 @@ func NewCollector(pairRepo repositories.PairRepository, exchangeRepo repositorie
 	}
 }
 
-func (c *Collector) RunCycle() {
-	pairs, err := c.pairRepo.GetAll()
+func (c *Collector) RunCycle(ctx context.Context) {
+	pairs, err := c.pairRepo.GetAll(ctx)
 	if err != nil {
 		log.Println("pairs error:", err)
 		return
 	}
 
-	exNames, err := c.exchangeRepo.GetEnabled()
+	exNames, err := c.exchangeRepo.GetEnabled(ctx)
 	if err != nil {
 		log.Println("exchanges error:", err)
 		return
@@ -57,20 +59,26 @@ func (c *Collector) RunCycle() {
 			go func(e exchanges.Exchange, p models.Pair) {
 				defer wg.Done()
 
-				quote, err := e.Fetch(p)
+				quote, err := e.Fetch(ctx, p)
 				if err != nil {
 					log.Printf("[%s] error: %v\n", e.Name(), err)
 					return
 				}
+				select {
+				case quotesChan <- quote:
 
-				quotesChan <- quote
+				case <-ctx.Done():
+					return
+				}
 
 			}(ex, pair)
 		}
 	}
 
-	wg.Wait()
-	close(quotesChan)
+	go func() {
+		wg.Wait()
+		close(quotesChan)
+	}()
 
 	var quotes []models.Quote
 
@@ -82,7 +90,11 @@ func (c *Collector) RunCycle() {
 		return
 	}
 
-	if err := c.quoteRepo.SaveBatch(quotes); err != nil {
+	writeCtx, cancelWrite := context.WithTimeout(ctx, 35*time.Second)
+
+	defer cancelWrite()
+
+	if err := c.quoteRepo.SaveBatch(writeCtx, quotes); err != nil {
 		log.Println("save batch error:", err)
 	}
 }

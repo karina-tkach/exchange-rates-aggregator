@@ -16,9 +16,9 @@ func NewPostgresExchangeRepository(db *pgxpool.Pool) *PostgresExchangeRepository
 	}
 }
 
-func (r *PostgresExchangeRepository) GetEnabled() ([]string, error) {
+func (r *PostgresExchangeRepository) GetEnabled(ctx context.Context) ([]string, error) {
 	rows, err := r.db.Query(
-		context.Background(),
+		ctx,
 		`
 		SELECT name
 		FROM exchanges

@@ -1,8 +1,11 @@
 package exchanges
 
-import "market-data-collector/internal/models"
+import (
+	"context"
+	"market-data-collector/internal/models"
+)
 
 type Exchange interface {
 	Name() string
-	Fetch(pair models.Pair) (models.Quote, error)
+	Fetch(ctx context.Context, pair models.Pair) (models.Quote, error)
 }

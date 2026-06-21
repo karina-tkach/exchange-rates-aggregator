@@ -1,26 +1,34 @@
 package factory
 
 import (
+	"market-data-collector/internal/config"
 	"market-data-collector/internal/exchanges"
+	"market-data-collector/internal/exchanges/binance"
+	"market-data-collector/internal/exchanges/coinbase"
+	"market-data-collector/internal/exchanges/kraken"
 )
 
-type ExchangeFactory struct{}
+type ExchangeFactory struct {
+	config config.ExchangeConfig
+}
 
-func NewExchangeFactory() *ExchangeFactory {
-	return &ExchangeFactory{}
+func NewExchangeFactory(cfg config.ExchangeConfig) *ExchangeFactory {
+	return &ExchangeFactory{
+		config: cfg,
+	}
 }
 
 func (f *ExchangeFactory) Build(name string) exchanges.Exchange {
 	switch name {
 
 	case "Binance":
-		return exchanges.Binance{}
+		return binance.New(f.config.Binance)
 
 	case "Kraken":
-		return exchanges.Kraken{}
+		return kraken.New(f.config.Kraken)
 
 	case "Coinbase":
-		return exchanges.Coinbase{}
+		return coinbase.New(f.config.Coinbase)
 
 	default:
 		return nil

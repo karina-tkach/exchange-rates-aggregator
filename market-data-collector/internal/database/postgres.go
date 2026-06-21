@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"market-data-collector/internal/config"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -16,7 +17,15 @@ func ConnectPostgres() *pgxpool.Pool {
 		log.Fatalf("failed to create postgres pool: %v", err)
 	}
 
-	if err := pool.Ping(context.Background()); err != nil {
+	timeout := config.GetDuration(
+		"DB_TIMEOUT",
+		3*time.Second,
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := pool.Ping(ctx); err != nil {
 		log.Fatalf("failed to ping postgres: %v", err)
 	}
 

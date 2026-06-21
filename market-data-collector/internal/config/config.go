@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -26,4 +27,29 @@ func GetPostgresDBConnectionString() string {
 	}
 
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)
+}
+
+func GetDuration(key string, defaultValue time.Duration) time.Duration {
+	value := os.Getenv(key)
+
+	if value == "" {
+		return defaultValue
+	}
+
+	duration, err := time.ParseDuration(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return duration
+}
+
+func GetEnv(key, fallback string) string {
+	value := os.Getenv(key)
+
+	if value == "" {
+		return fallback
+	}
+
+	return value
 }
