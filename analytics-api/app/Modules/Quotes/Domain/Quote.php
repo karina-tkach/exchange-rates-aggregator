@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Quotes\Domain;
 
 use App\Modules\Pairs\Domain\Pair;
@@ -23,6 +25,9 @@ class Quote extends Model
 
     protected $casts = [
         'time' => 'datetime',
+        'price' => 'decimal:8',
+        'bid'   => 'decimal:8',
+        'ask'   => 'decimal:8',
     ];
 
     public function pair(): BelongsTo

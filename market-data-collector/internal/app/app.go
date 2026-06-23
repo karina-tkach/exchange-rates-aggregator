@@ -5,10 +5,10 @@ import (
 	"log"
 	"market-data-collector/internal/collector"
 	"market-data-collector/internal/config"
-	"market-data-collector/internal/database"
 	"market-data-collector/internal/factory"
 	"market-data-collector/internal/repositories"
 	"market-data-collector/internal/scheduler"
+	"market-data-collector/internal/storage"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,9 +17,11 @@ import (
 func Run() {
 	config.LoadEnv()
 
-	db := database.ConnectPostgres()
+	db := storage.ConnectPostgres()
 
-	repos := repositories.NewRepoManager(db)
+	redis := storage.CreateRedisClient()
+
+	repos := repositories.NewRepoManager(db, redis)
 
 	exchangeConfig := config.LoadExchangeConfig()
 	exFactory := factory.NewExchangeFactory(exchangeConfig)
@@ -28,6 +30,7 @@ func Run() {
 		repos.PairRepo,
 		repos.ExchangeRepo,
 		repos.QuoteRepo,
+		repos.RateCache,
 		exFactory,
 	)
 
@@ -49,6 +52,9 @@ func Run() {
 	cancel()
 	sc.Wait()
 	db.Close()
+	if err := redis.Close(); err != nil {
+		log.Printf("redis close error: %v", err)
+	}
 
-	log.Println("✅ db closed, exit complete")
+	log.Println("✅ exit complete")
 }

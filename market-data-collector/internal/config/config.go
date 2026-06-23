@@ -23,7 +23,7 @@ func GetPostgresDBConnectionString() string {
 	dbname := os.Getenv("DB_NAME")
 
 	if host == "" || port == "" || user == "" || password == "" || dbname == "" {
-		log.Fatal("Missing required environment variables for database connection")
+		log.Fatal("Missing required environment variables for storage connection")
 	}
 
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)
@@ -52,4 +52,11 @@ func GetEnv(key, fallback string) string {
 	}
 
 	return value
+}
+
+func GetRedisAddress() string {
+	return GetEnv(
+		"REDIS_ADDRESS",
+		"localhost:6379",
+	)
 }

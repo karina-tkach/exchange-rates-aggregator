@@ -15,15 +15,18 @@ type Collector struct {
 	pairRepo        repositories.PairRepository
 	exchangeRepo    repositories.ExchangeRepository
 	quoteRepo       repositories.QuoteRepository
+	rateCache       repositories.CacheRateRepository
 	exchangeFactory *factory.ExchangeFactory
 }
 
 func NewCollector(pairRepo repositories.PairRepository, exchangeRepo repositories.ExchangeRepository,
-	quoteRepo repositories.QuoteRepository, exchangeFactory *factory.ExchangeFactory) *Collector {
+	quoteRepo repositories.QuoteRepository, rateCache repositories.CacheRateRepository,
+	exchangeFactory *factory.ExchangeFactory) *Collector {
 	return &Collector{
 		pairRepo:        pairRepo,
 		exchangeRepo:    exchangeRepo,
 		quoteRepo:       quoteRepo,
+		rateCache:       rateCache,
 		exchangeFactory: exchangeFactory,
 	}
 }
@@ -51,6 +54,11 @@ func (c *Collector) RunCycle(ctx context.Context) {
 
 	var wg sync.WaitGroup
 	quotesChan := make(chan models.Quote, 500)
+
+	pairMap := make(map[uint32]string)
+	for _, p := range pairs {
+		pairMap[p.ID] = p.Base + "-" + p.Quote
+	}
 
 	for _, ex := range exs {
 		for _, pair := range pairs {
@@ -96,5 +104,10 @@ func (c *Collector) RunCycle(ctx context.Context) {
 
 	if err := c.quoteRepo.SaveBatch(writeCtx, quotes); err != nil {
 		log.Println("save batch error:", err)
+		return
+	}
+
+	if err := c.rateCache.SaveCurrentRates(writeCtx, quotes, pairMap); err != nil {
+		log.Println("redis save error:", err)
 	}
 }

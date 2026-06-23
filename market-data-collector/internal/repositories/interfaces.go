@@ -16,3 +16,7 @@ type ExchangeRepository interface {
 type QuoteRepository interface {
 	SaveBatch(ctx context.Context, quotes []models.Quote) error
 }
+
+type CacheRateRepository interface {
+	SaveCurrentRates(ctx context.Context, quotes []models.Quote, pairs map[uint32]string) error
+}

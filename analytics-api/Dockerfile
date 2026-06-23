@@ -10,7 +10,7 @@ libpq-dev \
 nodejs npm \
 && rm -rf /var/lib/apt/lists/*
 # Встановлення розширень PHP для роботи з базами даних
-RUN docker-php-ext-install pdo pdo_pgsql
+RUN docker-php-ext-install pdo pdo_pgsql bcmath
 # Встановлення Composer з офіційного образу
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Встановлення розширення Redis

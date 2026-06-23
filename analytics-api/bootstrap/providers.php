@@ -1,7 +1,8 @@
 <?php
 
 return [
-    App\Providers\AppServiceProvider::class,
-
     App\Modules\Auth\AuthServiceProvider::class,
+    App\Modules\Quotes\QuotesServiceProvider::class,
+    App\Providers\AppServiceProvider::class,
+    App\Providers\TelescopeServiceProvider::class,
 ];
