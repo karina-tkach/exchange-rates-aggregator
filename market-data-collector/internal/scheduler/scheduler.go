@@ -50,7 +50,15 @@ func (s *Scheduler) run(ctx context.Context) {
 
 	log.Println("📡 running collector cycle...")
 
-	s.collector.RunCycle(ctx)
+	cycleCtx, cancel := context.WithTimeout(ctx, s.collector.CollectorConfig.CollectorCycleTimeout)
+	defer cancel()
+
+	s.collector.RunCycle(cycleCtx)
+
+	err := cycleCtx.Err()
+	if err != nil {
+		log.Printf("cycle ended with error: %v", err)
+	}
 
 	log.Printf("✅ cycle finished in %s\n", time.Since(start))
 }

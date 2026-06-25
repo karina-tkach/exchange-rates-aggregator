@@ -10,12 +10,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisRateRepository struct {
+type RateRepository struct {
 	client *redis.Client
 }
 
-func NewRedisRateRepository(client *redis.Client) *RedisRateRepository {
-	return &RedisRateRepository{
+func NewRateRepository(client *redis.Client) *RateRepository {
+	return &RateRepository{
 		client: client,
 	}
 }
@@ -27,11 +27,13 @@ type CachedRate struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (r *RedisRateRepository) SaveCurrentRates(
+func (r *RateRepository) SaveCurrentRates(
 	ctx context.Context,
 	quotes []models.Quote,
 	pairs map[uint32]string,
 ) error {
+	ttl := 35 * time.Second
+	key := "rates"
 	grouped := make(map[string]map[string]CachedRate)
 
 	for _, q := range quotes {
@@ -54,16 +56,16 @@ func (r *RedisRateRepository) SaveCurrentRates(
 	for pair, value := range grouped {
 		payload, err := json.Marshal(value)
 		if err != nil {
-			return err
+			return fmt.Errorf("json marshal: %w", err)
 		}
 
 		if err := r.client.Set(
 			ctx,
-			fmt.Sprintf("rates:%s", pair),
+			fmt.Sprintf("%s:%s", key, pair),
 			payload,
-			35*time.Second,
+			ttl,
 		).Err(); err != nil {
-			return err
+			return fmt.Errorf("redis set: %w", err)
 		}
 	}
 

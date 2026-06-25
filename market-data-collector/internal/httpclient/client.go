@@ -4,34 +4,25 @@ import (
 	"market-data-collector/internal/config"
 	"net"
 	"net/http"
-	"time"
 )
 
-func NewClient() *http.Client {
+var Client *http.Client
+
+func Init(cfg config.HttpConfig) {
+	Client = NewClient(cfg)
+}
+
+func NewClient(cfg config.HttpConfig) *http.Client {
 	return &http.Client{
-		Timeout: config.GetDuration(
-			"HTTP_CLIENT_TIMEOUT",
-			3*time.Second,
-		),
+		Timeout: cfg.ClientTimeout,
 		Transport: &http.Transport{
 			MaxIdleConns:        100,
 			MaxIdleConnsPerHost: 50,
-			IdleConnTimeout: config.GetDuration(
-				"HTTP_IDLE_CONN_TIMEOUT",
-				90*time.Second,
-			),
+			IdleConnTimeout:     cfg.IdleConTimeout,
 			DialContext: (&net.Dialer{
-				Timeout: config.GetDuration(
-					"HTTP_DIAL_TIMEOUT",
-					2*time.Second,
-				),
-				KeepAlive: config.GetDuration(
-					"HTTP_KEEP_ALIVE",
-					30*time.Second,
-				),
+				Timeout:   cfg.DialTimeout,
+				KeepAlive: cfg.KeepAlive,
 			}).DialContext,
 		},
 	}
 }
-
-var Client = NewClient()

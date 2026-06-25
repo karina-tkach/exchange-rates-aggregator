@@ -2,21 +2,22 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PostgresExchangeRepository struct {
+type ExchangeRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewPostgresExchangeRepository(db *pgxpool.Pool) *PostgresExchangeRepository {
-	return &PostgresExchangeRepository{
+func NewExchangeRepository(db *pgxpool.Pool) *ExchangeRepository {
+	return &ExchangeRepository{
 		db: db,
 	}
 }
 
-func (r *PostgresExchangeRepository) GetEnabled(ctx context.Context) ([]string, error) {
+func (r *ExchangeRepository) GetEnabled(ctx context.Context) ([]string, error) {
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -27,7 +28,7 @@ func (r *PostgresExchangeRepository) GetEnabled(ctx context.Context) ([]string, 
 		`,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get enabled exchanges: %w", err)
 	}
 	defer rows.Close()
 
@@ -37,7 +38,7 @@ func (r *PostgresExchangeRepository) GetEnabled(ctx context.Context) ([]string, 
 		var name string
 
 		if err := rows.Scan(&name); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan exchange name: %w", err)
 		}
 
 		exchanges = append(exchanges, name)

@@ -2,57 +2,56 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"market-data-collector/internal/models"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PostgresQuoteRepository struct {
+type QuoteRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewPostgresQuoteRepository(db *pgxpool.Pool) *PostgresQuoteRepository {
-	return &PostgresQuoteRepository{
+func NewQuoteRepository(db *pgxpool.Pool) *QuoteRepository {
+	return &QuoteRepository{
 		db: db,
 	}
 }
 
-func (r *PostgresQuoteRepository) SaveBatch(ctx context.Context, quotes []models.Quote) error {
+func (r *QuoteRepository) SaveBatch(ctx context.Context, quotes []models.Quote) error {
 	if len(quotes) == 0 {
 		return nil
 	}
 
-	batch := &pgx.Batch{}
+	rows := make([][]any, 0, len(quotes))
 
 	for _, q := range quotes {
-		batch.Queue(`
-			INSERT INTO quotes (
-				pair_id,
-				price,
-				bid,
-				ask,
-				source,
-				time
-			)
-			VALUES ($1,$2,$3,$4,$5,$6)
-		`,
+		rows = append(rows, []any{
+			q.Timestamp,
 			q.PairID,
 			q.Price,
 			q.Bid,
 			q.Ask,
 			q.Source,
-			q.Timestamp,
-		)
+		})
 	}
 
-	br := r.db.SendBatch(ctx, batch)
-	defer br.Close()
+	_, err := r.db.CopyFrom(
+		ctx, pgx.Identifier{"quotes"},
+		[]string{
+			"time",
+			"pair_id",
+			"price",
+			"bid",
+			"ask",
+			"source",
+		},
+		pgx.CopyFromRows(rows),
+	)
 
-	for range quotes {
-		if _, err := br.Exec(); err != nil {
-			return err
-		}
+	if err != nil {
+		return fmt.Errorf("save quotes: %w", err)
 	}
 
 	return nil

@@ -2,22 +2,24 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"market-data-collector/internal/models"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PostgresPairRepository struct {
+type PairRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewPostgresPairRepository(db *pgxpool.Pool) *PostgresPairRepository {
-	return &PostgresPairRepository{
+func NewPairRepository(db *pgxpool.Pool) *PairRepository {
+	return &PairRepository{
 		db: db,
 	}
 }
 
-func (r *PostgresPairRepository) GetAll(ctx context.Context) ([]models.Pair, error) {
+func (r *PairRepository) GetAll(ctx context.Context) ([]models.Pair, error) {
 	rows, err := r.db.Query(
 		ctx,
 		`
@@ -27,24 +29,12 @@ func (r *PostgresPairRepository) GetAll(ctx context.Context) ([]models.Pair, err
 		`,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get all pairs: %w", err)
 	}
-	defer rows.Close()
 
-	var pairs []models.Pair
-
-	for rows.Next() {
-		var pair models.Pair
-
-		if err := rows.Scan(
-			&pair.ID,
-			&pair.Base,
-			&pair.Quote,
-		); err != nil {
-			return nil, err
-		}
-
-		pairs = append(pairs, pair)
+	pairs, err := pgx.CollectRows(rows, pgx.RowToStructByPos[models.Pair])
+	if err != nil {
+		return nil, fmt.Errorf("map all pairs: %w", err)
 	}
 
 	return pairs, nil

@@ -6,8 +6,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func CreateRedisClient() *redis.Client {
+func CreateRedisClient(cfg config.RedisConfig) *redis.Client {
 	return redis.NewClient(&redis.Options{
-		Addr: config.GetRedisAddress(),
+		Addr: cfg.RedisAddress,
 	})
 }

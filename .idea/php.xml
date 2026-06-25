@@ -130,9 +130,11 @@
       <path value="$PROJECT_DIR$/analytics-api/vendor/nyholm/psr7" />
       <path value="$PROJECT_DIR$/analytics-api/vendor/sebastian/object-reflector" />
       <path value="$PROJECT_DIR$/analytics-api/vendor/doctrine/lexer" />
+      <path value="$PROJECT_DIR$/analytics-api/vendor/laravel/telescope" />
+      <path value="$PROJECT_DIR$/analytics-api/vendor/laravel/sentinel" />
     </include_path>
   </component>
-  <component name="PhpProjectSharedConfiguration" php_language_level="8.5">
+  <component name="PhpProjectSharedConfiguration" php_language_level="8.2">
     <option name="suggestChangeDefaultLanguageLevel" value="false" />
   </component>
   <component name="PhpStanOptionsConfiguration">

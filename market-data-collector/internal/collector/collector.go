@@ -3,13 +3,18 @@ package collector
 import (
 	"context"
 	"log"
+	"market-data-collector/internal/config"
 	"market-data-collector/internal/exchanges"
 	"market-data-collector/internal/factory"
 	"market-data-collector/internal/models"
 	"market-data-collector/internal/repositories"
 	"sync"
-	"time"
 )
+
+type job struct {
+	ex   exchanges.Exchange
+	pair models.Pair
+}
 
 type Collector struct {
 	pairRepo        repositories.PairRepository
@@ -17,30 +22,32 @@ type Collector struct {
 	quoteRepo       repositories.QuoteRepository
 	rateCache       repositories.CacheRateRepository
 	exchangeFactory *factory.ExchangeFactory
+	CollectorConfig config.CollectorConfig
 }
 
 func NewCollector(pairRepo repositories.PairRepository, exchangeRepo repositories.ExchangeRepository,
 	quoteRepo repositories.QuoteRepository, rateCache repositories.CacheRateRepository,
-	exchangeFactory *factory.ExchangeFactory) *Collector {
+	exchangeFactory *factory.ExchangeFactory, collectorConfig config.CollectorConfig) *Collector {
 	return &Collector{
 		pairRepo:        pairRepo,
 		exchangeRepo:    exchangeRepo,
 		quoteRepo:       quoteRepo,
 		rateCache:       rateCache,
 		exchangeFactory: exchangeFactory,
+		CollectorConfig: collectorConfig,
 	}
 }
 
 func (c *Collector) RunCycle(ctx context.Context) {
 	pairs, err := c.pairRepo.GetAll(ctx)
 	if err != nil {
-		log.Println("pairs error:", err)
+		log.Printf("collector: load pairs failed: %s\n", err)
 		return
 	}
 
 	exNames, err := c.exchangeRepo.GetEnabled(ctx)
 	if err != nil {
-		log.Println("exchanges error:", err)
+		log.Printf("collector: load pairs failed: %s\n", err)
 		return
 	}
 
@@ -52,45 +59,44 @@ func (c *Collector) RunCycle(ctx context.Context) {
 		}
 	}
 
-	var wg sync.WaitGroup
-	quotesChan := make(chan models.Quote, 500)
-
 	pairMap := make(map[uint32]string)
 	for _, p := range pairs {
 		pairMap[p.ID] = p.Base + "-" + p.Quote
 	}
 
-	for _, ex := range exs {
-		for _, pair := range pairs {
-			wg.Add(1)
+	jobs := make(chan job, len(pairs)*len(exs))
+	results := make(chan models.Quote, len(pairs)*len(exs))
 
-			go func(e exchanges.Exchange, p models.Pair) {
-				defer wg.Done()
+	var wg sync.WaitGroup
 
-				quote, err := e.Fetch(ctx, p)
-				if err != nil {
-					log.Printf("[%s] error: %v\n", e.Name(), err)
-					return
-				}
-				select {
-				case quotesChan <- quote:
+	for i := 0; i < c.CollectorConfig.CollectorWorkers; i++ {
+		wg.Add(1)
 
-				case <-ctx.Done():
-					return
-				}
-
-			}(ex, pair)
-		}
+		go c.worker(ctx, jobs, results, &wg)
 	}
 
 	go func() {
+		defer close(jobs)
+
+		for _, ex := range exs {
+			for _, pair := range pairs {
+				select {
+				case jobs <- job{ex: ex, pair: pair}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	go func() {
 		wg.Wait()
-		close(quotesChan)
+		close(results)
 	}()
 
 	var quotes []models.Quote
 
-	for q := range quotesChan {
+	for q := range results {
 		quotes = append(quotes, q)
 	}
 
@@ -98,16 +104,30 @@ func (c *Collector) RunCycle(ctx context.Context) {
 		return
 	}
 
-	writeCtx, cancelWrite := context.WithTimeout(ctx, 35*time.Second)
-
-	defer cancelWrite()
-
-	if err := c.quoteRepo.SaveBatch(writeCtx, quotes); err != nil {
-		log.Println("save batch error:", err)
+	if err := c.quoteRepo.SaveBatch(ctx, quotes); err != nil {
+		log.Printf("save batch error: %v\n", err)
 		return
 	}
 
-	if err := c.rateCache.SaveCurrentRates(writeCtx, quotes, pairMap); err != nil {
-		log.Println("redis save error:", err)
+	if err := c.rateCache.SaveCurrentRates(ctx, quotes, pairMap); err != nil {
+		log.Printf("redis save error: %v\n", err)
+	}
+}
+
+func (c *Collector) worker(ctx context.Context, jobs <-chan job, results chan<- models.Quote, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for j := range jobs {
+		quote, err := j.ex.Fetch(ctx, j.pair)
+		if err != nil {
+			log.Printf("[%s] error: %v", j.ex.Name(), err)
+			continue
+		}
+
+		select {
+		case results <- quote:
+		case <-ctx.Done():
+			return
+		}
 	}
 }

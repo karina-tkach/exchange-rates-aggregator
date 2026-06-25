@@ -6,25 +6,33 @@ import (
 	"market-data-collector/internal/collector"
 	"market-data-collector/internal/config"
 	"market-data-collector/internal/factory"
+	"market-data-collector/internal/httpclient"
 	"market-data-collector/internal/repositories"
 	"market-data-collector/internal/scheduler"
 	"market-data-collector/internal/storage"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/joho/godotenv"
 )
 
 func Run() {
-	config.LoadEnv()
+	_ = godotenv.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	db := storage.ConnectPostgres()
+	db := storage.ConnectPostgres(cfg.Database)
 
-	redis := storage.CreateRedisClient()
+	redis := storage.CreateRedisClient(cfg.Redis)
+
+	httpclient.Init(cfg.Http)
 
 	repos := repositories.NewRepoManager(db, redis)
 
-	exchangeConfig := config.LoadExchangeConfig()
-	exFactory := factory.NewExchangeFactory(exchangeConfig)
+	exFactory := factory.NewExchangeFactory(cfg.Exchange)
 
 	col := collector.NewCollector(
 		repos.PairRepo,
@@ -32,6 +40,7 @@ func Run() {
 		repos.QuoteRepo,
 		repos.RateCache,
 		exFactory,
+		cfg.Collector,
 	)
 
 	sc := scheduler.NewScheduler(col)

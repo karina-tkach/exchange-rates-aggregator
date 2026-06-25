@@ -2,25 +2,39 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"market-data-collector/internal/config"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func ConnectPostgres() *pgxpool.Pool {
-	dsn := config.GetPostgresDBConnectionString()
+func ConnectPostgres(cfg config.DatabaseConfig) *pgxpool.Pool {
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
 
-	pool, err := pgxpool.New(context.Background(), dsn)
+	poolConfig, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		log.Fatalf("parse postgres config: %v", err)
+	}
+
+	poolConfig.MaxConns = int32(cfg.MaxConns)
+	poolConfig.MinConns = int32(cfg.MinConns)
+
+	poolConfig.MaxConnLifetime = cfg.MaxConnLifetime
+
+	poolConfig.MaxConnIdleTime = cfg.MaxConnIdleTime
+
+	pool, err := pgxpool.NewWithConfig(
+		context.Background(),
+		poolConfig,
+	)
+
 	if err != nil {
 		log.Fatalf("failed to create postgres pool: %v", err)
 	}
 
-	timeout := config.GetDuration(
-		"DB_TIMEOUT",
-		3*time.Second,
-	)
+	timeout := cfg.Timeout
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

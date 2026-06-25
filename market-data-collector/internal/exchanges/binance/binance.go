@@ -2,12 +2,10 @@ package binance
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"market-data-collector/internal/config"
 	"market-data-collector/internal/httpclient"
 	"market-data-collector/internal/models"
-	"net/http"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -32,25 +30,10 @@ func (b *Binance) Fetch(ctx context.Context, pair models.Pair) (models.Quote, er
 		b.cfg.BaseURL,
 		symbol,
 	)
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		url,
-		nil,
-	)
-
-	if err != nil {
-		return models.Quote{}, err
-	}
-
-	resp, err := httpclient.Client.Do(req)
-	if err != nil {
-		return models.Quote{}, err
-	}
-	defer resp.Body.Close()
 
 	var book BookTickerResponse
-	if err := json.NewDecoder(resp.Body).Decode(&book); err != nil {
+	err := httpclient.GetJSON(ctx, httpclient.Client, url, &book)
+	if err != nil {
 		return models.Quote{}, err
 	}
 
@@ -64,12 +47,12 @@ func (b *Binance) Fetch(ctx context.Context, pair models.Pair) (models.Quote, er
 
 	bid, err := decimal.NewFromString(book.BidPrice)
 	if err != nil {
-		return models.Quote{}, err
+		return models.Quote{}, fmt.Errorf("parsing bid: %w", err)
 	}
 
 	ask, err := decimal.NewFromString(book.AskPrice)
 	if err != nil {
-		return models.Quote{}, err
+		return models.Quote{}, fmt.Errorf("parsing ask: %w", err)
 	}
 
 	priceURL := fmt.Sprintf(
@@ -77,14 +60,10 @@ func (b *Binance) Fetch(ctx context.Context, pair models.Pair) (models.Quote, er
 		b.cfg.BaseURL,
 		symbol,
 	)
-	priceResp, err := httpclient.Client.Get(priceURL)
-	if err != nil {
-		return models.Quote{}, err
-	}
-	defer priceResp.Body.Close()
 
 	var priceData PriceResponse
-	if err := json.NewDecoder(priceResp.Body).Decode(&priceData); err != nil {
+	err = httpclient.GetJSON(ctx, httpclient.Client, priceURL, &priceData)
+	if err != nil {
 		return models.Quote{}, err
 	}
 
@@ -98,7 +77,7 @@ func (b *Binance) Fetch(ctx context.Context, pair models.Pair) (models.Quote, er
 
 	price, err := decimal.NewFromString(priceData.Price)
 	if err != nil {
-		return models.Quote{}, err
+		return models.Quote{}, fmt.Errorf("parsing price: %w", err)
 	}
 
 	return models.Quote{

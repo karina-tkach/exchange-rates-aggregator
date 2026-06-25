@@ -2,61 +2,112 @@ package config
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
 )
 
-func LoadEnv() {
-	if err := godotenv.Load(); err != nil {
-		log.Println(".env not found, using environment variables")
-	}
+type Config struct {
+	Database  DatabaseConfig
+	Redis     RedisConfig
+	Http      HttpConfig
+	Collector CollectorConfig
+	Exchange  ExchangeConfig
 }
 
-func GetPostgresDBConnectionString() string {
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
+type DatabaseConfig struct {
+	Host     string `envconfig:"DB_HOST" default:"localhost"`
+	Port     string `envconfig:"DB_PORT" default:"5432"`
+	User     string `envconfig:"DB_USER" default:"postgres"`
+	Password string `envconfig:"DB_PASSWORD" default:"postgres"`
+	Name     string `envconfig:"DB_NAME" default:"postgres"`
 
-	if host == "" || port == "" || user == "" || password == "" || dbname == "" {
-		log.Fatal("Missing required environment variables for storage connection")
-	}
-
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)
+	Timeout         time.Duration `envconfig:"DB_TIMEOUT" default:"5m"`
+	MaxConns        int           `envconfig:"DB_MAX_CONNS" default:"10"`
+	MinConns        int           `envconfig:"DB_MIN_CONNS" default:"10"`
+	MaxConnLifetime time.Duration `envconfig:"DB_MAX_CONN_LIFETIME" default:"1h"`
+	MaxConnIdleTime time.Duration `envconfig:"DB_MAX_CONN_IDLE_TIME" default:"30m"`
 }
 
-func GetDuration(key string, defaultValue time.Duration) time.Duration {
-	value := os.Getenv(key)
+type RedisConfig struct {
+	RedisAddress string `envconfig:"REDIS_ADDRESS" default:"localhost:6379"`
+}
 
-	if value == "" {
-		return defaultValue
-	}
+type HttpConfig struct {
+	ClientTimeout  time.Duration `envconfig:"HTTP_CLIENT_TIMEOUT" default:"10s"`
+	DialTimeout    time.Duration `envconfig:"HTTP_DIAL_TIMEOUT" default:"10s"`
+	KeepAlive      time.Duration `envconfig:"HTTP_KEEP_ALIVE" default:"10s"`
+	IdleConTimeout time.Duration `envconfig:"HTTP_IDLE_CON_TIMEOUT" default:"10s"`
+}
 
-	duration, err := time.ParseDuration(value)
+type CollectorConfig struct {
+	CollectorCycleTimeout time.Duration `envconfig:"COLLECTOR_CYCLE_TIMEOUT" default:"35s"`
+	CollectorWorkers      int           `envconfig:"COLLECTOR_WORKERS" default:"50"`
+}
+
+func Load() (*Config, error) {
+	db, err := loadDatabaseConfig()
 	if err != nil {
-		return defaultValue
+		return nil, err
 	}
 
-	return duration
-}
-
-func GetEnv(key, fallback string) string {
-	value := os.Getenv(key)
-
-	if value == "" {
-		return fallback
+	redis, err := loadRedisConfig()
+	if err != nil {
+		return nil, err
 	}
 
-	return value
+	httpCfg, err := loadHttpConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	collector, err := loadCollectorConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	exchange, err := loadExchangeConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Config{
+		Database:  db,
+		Redis:     redis,
+		Http:      httpCfg,
+		Collector: collector,
+		Exchange:  exchange,
+	}, nil
 }
 
-func GetRedisAddress() string {
-	return GetEnv(
-		"REDIS_ADDRESS",
-		"localhost:6379",
-	)
+func loadDatabaseConfig() (DatabaseConfig, error) {
+	var cfg DatabaseConfig
+	if err := envconfig.Process("", &cfg); err != nil {
+		return DatabaseConfig{}, fmt.Errorf("database config: %w", err)
+	}
+	return cfg, nil
+}
+
+func loadRedisConfig() (RedisConfig, error) {
+	var cfg RedisConfig
+	if err := envconfig.Process("", &cfg); err != nil {
+		return RedisConfig{}, fmt.Errorf("redis config: %w", err)
+	}
+	return cfg, nil
+}
+
+func loadHttpConfig() (HttpConfig, error) {
+	var cfg HttpConfig
+	if err := envconfig.Process("", &cfg); err != nil {
+		return HttpConfig{}, fmt.Errorf("http config: %w", err)
+	}
+	return cfg, nil
+}
+
+func loadCollectorConfig() (CollectorConfig, error) {
+	var cfg CollectorConfig
+	if err := envconfig.Process("", &cfg); err != nil {
+		return CollectorConfig{}, fmt.Errorf("collector config: %w", err)
+	}
+	return cfg, nil
 }
