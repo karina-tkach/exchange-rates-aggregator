@@ -1,0 +1,91 @@
+services:
+  collector:
+    build:
+      context: ./market-data-collector
+      dockerfile: Dockerfile
+    container_name: market_collector
+    ports:
+      - "${COLLECTOR_PORT}:8080"
+    depends_on:
+      - postgres
+      - redis
+
+  api:
+    build:
+      context: ./analytics-api
+      dockerfile: Dockerfile
+    container_name: analytics_api
+    ports:
+      - "${API_PORT}:8000"
+    volumes:
+      - ./analytics-api:/var/www/html
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DB_HOST: postgres
+      DB_DATABASE: ${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+    working_dir: /var/www/html
+    command: >
+      bash -c "
+        php artisan serve --host=0.0.0.0 --port=8000
+      "
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: php_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    command: postgres -c shared_preload_libraries=timescaledb
+
+  redis:
+    image: redis:7-alpine
+    container_name: php_redis
+    restart: always
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis-data:/data
+
+  adminer:
+    image: adminer
+    container_name: php_adminer
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "${ADMINER_PORT}:8080"
+
+  frontend:
+    image: node:20-alpine
+    container_name: aggregator_frontend
+    working_dir: /app
+    volumes:
+      - ./aggregator-frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    command: >
+      sh -c "
+        npm install &&
+        npm run dev -- --host 0.0.0.0
+      "
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    stdin_open: true
+    tty: true
+volumes:
+  db_data:
+  redis-data:
