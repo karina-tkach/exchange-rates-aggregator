@@ -10,9 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 class TimescaleOhlcRepository implements OhlcRepository
 {
-    public function getCandles(string $pair, string $period, string $timeframe): Collection
+    public function getCandles(string $pair, string $period, string $timeframe, array $exchanges): Collection
     {
-
         $bucket = match ($timeframe) {
             '1m' => '1 minute',
             '5m' => '5 minutes',
@@ -43,14 +42,20 @@ class TimescaleOhlcRepository implements OhlcRepository
                 p.quote
             ) = ?
             AND q.time >= ?
-            GROUP BY bucket
-            ORDER BY bucket
         ";
 
-        $rows = DB::select(
-            $sql,
-            [$pair, $from]
-        );
+        $params = [$pair, $from];
+
+        $placeholders = implode(',', array_fill(0, count($exchanges), '?'));
+        $sql .= " AND q.source IN ($placeholders) ";
+        $params = array_merge($params, $exchanges);
+
+        $sql .= "
+        GROUP BY bucket
+        ORDER BY bucket
+    ";
+
+        $rows = DB::select($sql, $params);
 
         return collect($rows)
             ->map(

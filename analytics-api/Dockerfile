@@ -7,7 +7,6 @@ zip \
 unzip \
 libzip-dev \
 libpq-dev \
-nodejs npm \
 && rm -rf /var/lib/apt/lists/*
 # Встановлення розширень PHP для роботи з базами даних
 RUN docker-php-ext-install pdo pdo_pgsql bcmath

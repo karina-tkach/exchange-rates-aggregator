@@ -22,6 +22,7 @@ class OhlcController extends Controller
                 $validated['pair'],
                 $validated['period'],
                 $validated['timeframe'],
+                $validated['exchange'] ?? null
             )
         );
     }

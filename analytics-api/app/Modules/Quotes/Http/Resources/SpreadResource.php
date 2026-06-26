@@ -11,12 +11,6 @@ class SpreadResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        if ($this->resource === null) {
-            return [
-                'message' => 'not enough exchanges'
-            ];
-        }
-
         return [
             'buy_exchange' => $this->buyExchange,
             'sell_exchange' => $this->sellExchange,

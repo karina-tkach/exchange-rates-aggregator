@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Quotes\Application\Services;
 
+use App\Modules\Exchanges\Application\Services\ExchangeService;
+use App\Modules\Quotes\Application\DTOs\OhlcDTO;
 use App\Modules\Quotes\Application\DTOs\RateDTO;
 use App\Modules\Quotes\Application\DTOs\SpreadDTO;
 use App\Modules\Quotes\Infrastructure\Repositories\OhlcRepository;
@@ -16,6 +18,7 @@ readonly class QuoteService
     public function __construct(
         private QuoteRepository $quoteRepository,
         private OhlcRepository $ohlcRepository,
+        private ExchangeService $exchangeService
     ) {}
 
     public function getRates(string $pair): Collection
@@ -23,7 +26,7 @@ readonly class QuoteService
         $cached = Redis::get("rates:$pair");
 
         if ($cached !== null) {
-            return $this->fromRedis($cached);
+            return $this->getRateFromRedis($cached);
         }
 
         return $this->quoteRepository
@@ -39,7 +42,9 @@ readonly class QuoteService
             );
     }
 
-    public function calculate(Collection $rates): ?SpreadDto {
+    public function calculateSpread(string $pair): ?SpreadDto {
+        $rates = $this->getRates($pair);
+
         if ($rates->count() < 2) {
             return null;
         }
@@ -67,7 +72,7 @@ readonly class QuoteService
         $spread = bcmul(
             bcdiv(bcsub($sell->bid, $buy->ask, 8), $buy->ask, 8),
             '100',
-            4
+            8
         );
 
 
@@ -80,7 +85,7 @@ readonly class QuoteService
         );
     }
 
-    private function fromRedis(string $json): Collection
+    private function getRateFromRedis(string $json): Collection
     {
         $data = json_decode($json, true);
 
@@ -97,7 +102,62 @@ readonly class QuoteService
             )->values();
     }
 
-    public function getCandles(string $pair, string $period, string $timeframe): Collection {
-        return $this->ohlcRepository->getCandles($pair, $period, $timeframe);
+    public function getCandles(string $pair, string $period, string $timeframe, ?string $exchange): Collection {
+        $enabled = $this->exchangeService->getEnabledExchangesNames();
+
+        $exchanges = $enabled;
+
+        if ($exchange !== null) {
+            if (empty($enabled) || !in_array($exchange, $enabled, true)) {
+                return collect();
+            }
+
+            $exchanges = [$exchange];
+        }
+
+        $cacheKey = $this->buildOhlcCacheKey($pair, $period, $timeframe, $exchange);
+
+        $cached = Redis::get($cacheKey);
+
+        if ($cached !== null) {
+            return $this->ohlcFromCache($cached);
+        }
+
+        $rows = $this->ohlcRepository->getCandles($pair, $period, $timeframe, $exchanges);
+
+        Redis::setex(
+            $cacheKey,
+            30,
+            json_encode($rows)
+        );
+
+        return $rows;
+    }
+
+    private function buildOhlcCacheKey(string $pair, string $period, string $timeframe, ?string $exchange): string
+    {
+        return sprintf(
+            "ohlc:%s:%s:%s:%s",
+            $pair,
+            $period,
+            $timeframe,
+            $exchange ?? "all"
+        );
+    }
+
+    private function ohlcFromCache(string $json): Collection
+    {
+        $data = json_decode($json, true);
+
+        return collect($data)
+            ->map(
+            fn ($row) => new OhlcDTO(
+                time: $row['time'],
+                open: $row['open'],
+                high: $row['high'],
+                low: $row['low'],
+                close: $row['close'],
+            )
+        );
     }
 }

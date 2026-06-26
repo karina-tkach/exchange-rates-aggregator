@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Raleway', sans-serif;
+  font-feature-settings: 'lnum' 1;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}

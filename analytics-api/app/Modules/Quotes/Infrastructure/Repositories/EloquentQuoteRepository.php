@@ -13,8 +13,14 @@ class EloquentQuoteRepository implements QuoteRepository
     public function getRates(string $pair): Collection
     {
         return Quote::query()
-            ->select('source', 'price', 'bid', 'ask', 'time')
-            ->distinct(['source'])
+            ->selectRaw("
+            DISTINCT ON (quotes.source)
+            quotes.source,
+            quotes.price,
+            quotes.bid,
+            quotes.ask,
+            quotes.time
+            ")
             ->join(
                 'pairs',
                 'pairs.id',
@@ -25,8 +31,8 @@ class EloquentQuoteRepository implements QuoteRepository
                 "CONCAT(pairs.base, '-', pairs.quote) = ?",
                 [$pair]
             )
-            ->orderBy('source')
-            ->orderByDesc('time')
+            ->orderBy('quotes.source')
+            ->orderByDesc('quotes.time')
             ->get();
     }
 }

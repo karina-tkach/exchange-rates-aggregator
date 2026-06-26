@@ -27,10 +27,13 @@ class RateController extends Controller
 
     public function spread(PairRequest $request): JsonResponse
     {
-        $pair = $request->validated('pair');
+        $spread = $this->quoteService->calculateSpread($request->validated('pair'));
 
-        $rates = $this->quoteService->getRates($pair);
-        $spread = $this->quoteService->calculate($rates);
+        if ($spread === null) {
+            return response()->json([
+                'message' => 'Not enough exchanges or no arbitrage opportunity',
+            ], 422);
+        }
 
         return (new SpreadResource($spread))->response()->setStatusCode(200);
     }

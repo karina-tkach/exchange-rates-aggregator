@@ -19,6 +19,7 @@ class OhlcRequest extends FormRequest
             'pair' => ['required', 'string','regex:/^[A-Z0-9]+-[A-Z0-9]+$/'],
             'period' => ['required', 'string', 'in:1h,24h,7d'],
             'timeframe' => ['required', 'string', 'in:1m,5m,1h,4h,1d'],
+            'exchange' => ['sometimes', 'string'],
         ];
     }
 
