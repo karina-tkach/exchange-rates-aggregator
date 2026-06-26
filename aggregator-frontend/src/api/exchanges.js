@@ -6,4 +6,12 @@ export const exchangesApi = {
 
         return res.data
     },
+
+    get(page = 1) {
+        return apiClient.get(`/exchanges?page=${page}`)
+    },
+
+    update(id, data) {
+        return apiClient.patch(`/exchanges/${id}`, data)
+    }
 }

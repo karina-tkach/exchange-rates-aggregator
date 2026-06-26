@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Middleware\AddCorrelationId;
+use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,7 +16,6 @@ use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
@@ -23,6 +24,9 @@ return Application::configure(basePath: dirname(__DIR__))
             AddCorrelationId::class,
         ]);
         $middleware->append(SecurityHeaders::class);
+        $middleware->alias([
+            'role' => RoleMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->dontFlash([
@@ -94,6 +98,15 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 403);
             }
 
+            return null;
+        });
+
+        $exceptions->render(function (ModelNotFoundException $e, Request $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'message' => 'Not found.'
+                ], 404);
+            }
             return null;
         });
 

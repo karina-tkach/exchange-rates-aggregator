@@ -3,6 +3,7 @@ import NotFound from "./pages/generic/NotFoundPage.jsx";
 import PublicRoutes from "./routes/PublicRoutes.jsx";
 import Footer from "./components/Footer.jsx";
 import Header from "./components/Header.jsx";
+import AdminRoutes from "./routes/AdminRoutes.jsx";
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
           <main className="flex-1">
               <Routes>
                   {PublicRoutes}
+                  {AdminRoutes}
                   <Route path="*" element={<NotFound/>}/>
               </Routes>
           </main>

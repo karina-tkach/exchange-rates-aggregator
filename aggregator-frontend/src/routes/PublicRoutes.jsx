@@ -4,6 +4,7 @@ import {Route} from "react-router-dom";
 import RatesPage from "../pages/RatesPage.jsx";
 import SpreadPage from "../pages/SpreadPage.jsx";
 import ChartPage from "../pages/ChartPage.jsx";
+import {LoginPage} from "../pages/LoginPage.jsx";
 
 const PublicRoutes = [
     <Route path="/" element={<HomePage />} key="home"/>,
@@ -11,6 +12,7 @@ const PublicRoutes = [
     <Route path="/spreads" element={<SpreadPage/>} key="spreads"/>,
     <Route path="/charts" element={<ChartPage/>} key="charts"/>,
 
+    <Route path="/login" element={<LoginPage />} key="login"/>,
 
     <Route path="/error" element={<ErrorPage />} key="error"/>
 ];

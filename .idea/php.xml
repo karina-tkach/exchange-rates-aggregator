@@ -132,6 +132,8 @@
       <path value="$PROJECT_DIR$/analytics-api/vendor/doctrine/lexer" />
       <path value="$PROJECT_DIR$/analytics-api/vendor/laravel/telescope" />
       <path value="$PROJECT_DIR$/analytics-api/vendor/laravel/sentinel" />
+      <path value="$PROJECT_DIR$/analytics-api/vendor/lcobucci/jwt" />
+      <path value="$PROJECT_DIR$/analytics-api/vendor/tymon/jwt-auth" />
     </include_path>
   </component>
   <component name="PhpProjectSharedConfiguration" php_language_level="8.2">
